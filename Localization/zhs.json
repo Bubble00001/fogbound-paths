@@ -1,0 +1,11 @@
+{
+  "ritsulib.page.title": "迷雾之径 (FogboundPaths)",
+  "ritsulib.page.description": "迷雾与侵蚀系统的配置选项。",
+  "fogboundpaths.section.gameplay.title": "玩法",
+  "fogboundpaths.enableFog.label": "启用迷雾",
+  "fogboundpaths.enableFog.description": "关闭后所有节点直接可见，仅保留侵蚀效果。",
+  "fogboundpaths.erosionBuffer.label": "侵蚀缓冲步数",
+  "fogboundpaths.erosionBuffer.description": "当前位置之后多少步侵蚀会追上（0 = 同步侵蚀）。",
+  "fogboundpaths.revealDepth.label": "视野深度",
+  "fogboundpaths.revealDepth.description": "揭示周围几步内的节点（0 = 仅当前节点）。"
+}

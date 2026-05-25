@@ -1,0 +1,11 @@
+{
+  "ritsulib.page.title": "Fogbound Paths",
+  "ritsulib.page.description": "Fog-of-war and erosion system configuration.",
+  "fogboundpaths.section.gameplay.title": "Gameplay",
+  "fogboundpaths.enableFog.label": "Enable Fog",
+  "fogboundpaths.enableFog.description": "When disabled, all nodes are directly visible; only erosion remains.",
+  "fogboundpaths.erosionBuffer.label": "Erosion Buffer",
+  "fogboundpaths.erosionBuffer.description": "How many steps between current position and erosion boundary (0 = same-turn).",
+  "fogboundpaths.revealDepth.label": "Reveal Depth",
+  "fogboundpaths.revealDepth.description": "How many steps from current position are revealed (0 = only current)."
+}
