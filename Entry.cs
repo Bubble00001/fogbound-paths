@@ -27,6 +27,7 @@ public class Entry
         harmony.PatchAll();
         ScriptManagerBridge.LookupScriptsInAssembly(typeof(Entry).Assembly);
         RegisterConfig();
+        FogConfigSync.Initialize();
         Log.Info("[FogboundPaths] Mod initialized!");
     }
 

@@ -158,6 +158,13 @@ public static class FogOfWarManager
             _currentState = null;
     }
 
+    /// <summary>清除所有 Act 的状态（新跑局开始时调用，防止旧局数据泄漏）</summary>
+    public static void ClearAllActs()
+    {
+        _actStates.Clear();
+        _currentState = null;
+    }
+
     // =========================================================================
     // 视野揭示：BFS 沿图边行走
     // =========================================================================

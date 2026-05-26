@@ -3,7 +3,7 @@
   "name": "迷雾之径",
   "author": "Spinaria",
   "description": "地图以迷雾笼罩，每层横向联通自由探索，但下方侵蚀步步紧逼。三阶段各减少一层，可视范围为两步。",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "min_game_version": "0.103.0",
   "has_pck": false,
   "has_dll": true,
