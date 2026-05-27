@@ -26,10 +26,10 @@ public static class SetMapFogInitPatch
     [HarmonyPrefix]
     private static void Prefix(NMapScreen __instance, ActMap map)
     {
-        // 反射获取 NMapScreen 的 _runState 字段
+        FogConfigSync.TryBroadcastPendingConfig();
+
         if (_runStateField?.GetValue(__instance) is not RunState runState) return;
 
-        // 初始化迷雾：传入当前幕索引、地图高度、起始坐标和已走访列表
         FogOfWarManager.InitializeAct(
             runState.CurrentActIndex,
             map.GetRowCount(),

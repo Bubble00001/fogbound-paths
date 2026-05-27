@@ -31,7 +31,7 @@ public static class FogConfigSync
 
         RitsuLibFramework.SubscribeLifecycle<RunStartedEvent>(OnRunStarted);
         RitsuLibFramework.SubscribeLifecycle<RunLoadedEvent>(OnRunLoaded);
-        RitsuLibSidecarEvents.OnSessionBound(OnSessionBound);
+        RitsuLibSidecarEvents.OnHandshakeCompleted(OnHandshakeCompleted);
 
         Log.Info("[FogboundPaths] Config sync initialized (multiplayer host-authority mode)");
     }
@@ -76,6 +76,14 @@ public static class FogConfigSync
         return sent;
     }
 
+    public static void TryBroadcastPendingConfig()
+    {
+        if (!_pendingBroadcast) return;
+        Log.Info("[FogboundPaths] SetMap triggered, attempting config broadcast...");
+        if (TryBroadcastConfig())
+            _pendingBroadcast = false;
+    }
+
     private static void OnRunStarted(RunStartedEvent evt)
     {
         ResetForNewRun(evt.IsMultiplayer);
@@ -97,14 +105,15 @@ public static class FogConfigSync
         if (isMultiplayer)
         {
             _pendingBroadcast = true;
-            TryBroadcastConfig();
+            Log.Info("[FogboundPaths] Config broadcast deferred, waiting for map open...");
         }
     }
 
-    private static void OnSessionBound(SidecarSessionBoundEvent evt)
+    private static void OnHandshakeCompleted(SidecarHandshakeCompletedEvent evt)
     {
         if (!_pendingBroadcast) return;
-        _pendingBroadcast = false;
-        TryBroadcastConfig();
+        Log.Info($"[FogboundPaths] Sidecar handshake completed for peer {evt.PeerNetId}, attempting config broadcast...");
+        if (TryBroadcastConfig())
+            _pendingBroadcast = false;
     }
 }

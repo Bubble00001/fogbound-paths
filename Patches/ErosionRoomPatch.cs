@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Commands;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Map;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Powers;
@@ -239,29 +240,17 @@ public static class ErosionCombatStrengthPatch
             // 检查当前坐标是否被侵蚀
             if (!FogOfWarManager.IsPointEroded(c.Value, rs.CurrentActIndex)) return;
 
-            var strModel = ModelDb.Power<StrengthPower>();
-            var plateModel = ModelDb.Power<PlatingPower>();
+            var ctx = new BlockingPlayerChoiceContext();
 
-            // 向每个存活的敌方生物施加侵蚀增益
             foreach (var e in cs.Enemies)
             {
                 if (e == null || e.IsDead) continue;
 
-                // +3 力量
-                if (strModel != null)
-                {
-                    var p = strModel.ToMutable();
-                    await PowerCmd.Apply(p, e, 3m, e, null);
-                    Log.Info($"[FogboundPaths] +3 Strength -> {e.LogName}");
-                }
+                await PowerCmd.Apply<StrengthPower>(ctx, e, 3m, e, null);
+                Log.Info($"[FogboundPaths] +3 Strength -> {e.LogName}");
 
-                // +10 覆甲（PlatingPower = 回合开始时获得等量格挡）
-                if (plateModel != null)
-                {
-                    var pp = plateModel.ToMutable();
-                    await PowerCmd.Apply(pp, e, 10m, e, null);
-                    Log.Info($"[FogboundPaths] +10 Plating -> {e.LogName}");
-                }
+                await PowerCmd.Apply<PlatingPower>(ctx, e, 10m, e, null);
+                Log.Info($"[FogboundPaths] +10 Plating -> {e.LogName}");
             }
         }
         catch (System.Exception ex)
