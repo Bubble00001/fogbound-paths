@@ -40,29 +40,25 @@ public static class EnterMapCoordRevisitPatch
     [HarmonyPrefix]
     private static bool Prefix(RunManager __instance, MapCoord coord, ref Task __result)
     {
-        // 反射获取 RunManager.State 属性
         var stateProp = typeof(RunManager).GetProperty("State",
             BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
         var state = stateProp?.GetValue(__instance) as RunState;
         if (state == null) return true;
 
-        // 首次访问 → 走原版逻辑
         if (!state.VisitedMapCoords.Contains(coord))
             return true;
 
-        // 已访问过 → 手动添加第二次（使 visitCount > 1）
         var visitedField = typeof(RunState).GetField("_visitedMapCoords",
             BindingFlags.NonPublic | BindingFlags.Instance);
         if (visitedField?.GetValue(state) is List<MapCoord> list)
             list.Add(coord);
 
-        // 反射调用 EnterMapCoordInternal（跳过 AddVisitedMapCoord 的短路）
         var method = typeof(RunManager).GetMethod("EnterMapCoordInternal",
             BindingFlags.NonPublic | BindingFlags.Instance);
         if (method == null) return true;
 
         __result = (Task)method.Invoke(__instance, [coord, null, true])!;
-        return false; // 跳过原始方法
+        return false;
     }
 }
 
@@ -92,7 +88,6 @@ public static class ErosionAndRevisitPatch
     private static bool Prefix(RunManager __instance, int actFloor, ref MapPointType pointType,
         AbstractRoom? preFinishedRoom, bool saveGame)
     {
-        // 每次进入先重置标记
         RevisitHelper.IsRevisit = false;
         if (preFinishedRoom != null) return true;
 
@@ -103,31 +98,25 @@ public static class ErosionAndRevisitPatch
         var coord = state.CurrentMapCoord;
         if (!coord.HasValue) return true;
 
-        // 远古节点（Neow）和 Boss 不处理
         if (pointType == MapPointType.Ancient || pointType == MapPointType.Boss)
             return true;
 
-        // 统计当前坐标在 visited 中出现的次数
         int visitCount = state.VisitedMapCoords.Count(v => v == coord.Value);
 
-        // 重复访问 → 进入空 RestSite
         if (visitCount > 1)
         {
             pointType = MapPointType.RestSite;
-            RevisitHelper.IsRevisit = true; // 通知下游补丁清空选项 + 启用 Proceed
+            RevisitHelper.IsRevisit = true;
             return true;
         }
 
-        // 未被侵蚀 → 原样
         bool isCombat = pointType == MapPointType.Monster ||
                         pointType == MapPointType.Elite;
         if (!FogOfWarManager.IsPointEroded(coord.Value, state.CurrentActIndex))
             return true;
 
-        // 侵蚀 + 战斗 → 保持战斗（力量在 StartCombat 中增加）
         if (isCombat) return true;
 
-        // 侵蚀 + 非战斗 → 替换为 RestSite（空房间）
         pointType = MapPointType.RestSite;
         return true;
     }

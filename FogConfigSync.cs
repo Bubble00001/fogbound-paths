@@ -45,7 +45,7 @@ public static class FogConfigSync
             if (config != null)
             {
                 FogOfWar.FogOfWarManager.Config = config;
-                Log.Info($"[FogboundPaths] Applied host config: RevealDepth={config.RevealDepth}, ErosionBuffer={config.ErosionBuffer}, EnableFog={config.EnableFog}");
+                Log.Info($"[FogboundPaths] Applied host config: RevealDepth={config.RevealDepth}, ErosionBuffer={config.ErosionBuffer}, EnableFog={config.EnableFog}, AllowBacktrack={config.AllowBacktrack}");
             }
         }
         catch (Exception ex)

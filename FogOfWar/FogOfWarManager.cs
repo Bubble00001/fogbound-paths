@@ -97,7 +97,14 @@ public static class FogOfWarManager
         RevealBfs(state, newCoord, map);
 
         if (state.VisitedCoords.Contains(newCoord))
+        {
+            if (Config.AllowBacktrack)
+            {
+                state.StepCount++;
+                state.ErosionRow = state.StepCount - Config.ErosionBuffer;
+            }
             return;
+        }
 
         state.VisitedCoords.Add(newCoord);
         state.StepCount++;

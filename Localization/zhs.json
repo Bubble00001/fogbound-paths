@@ -7,5 +7,7 @@
   "fogboundpaths.erosionBuffer.label": "侵蚀缓冲步数",
   "fogboundpaths.erosionBuffer.description": "当前位置之后多少步侵蚀会追上（0 = 同步侵蚀）。",
   "fogboundpaths.revealDepth.label": "视野深度",
-  "fogboundpaths.revealDepth.description": "揭示周围几步内的节点（0 = 仅当前节点）。"
+  "fogboundpaths.revealDepth.description": "揭示周围几步内的节点（0 = 仅当前节点）。",
+  "fogboundpaths.allowBacktrack.label": "允许回退",
+  "fogboundpaths.allowBacktrack.description": "启用后可以再次进入已经走过的节点。"
 }

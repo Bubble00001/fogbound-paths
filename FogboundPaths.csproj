@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <ModVersion>1.1.0</ModVersion>
+    <ModVersion>1.1.1</ModVersion>
 
     <RitsuLibDeployDir>$(Sts2Dir)/mods/STS2-RitsuLib/</RitsuLibDeployDir>
   </PropertyGroup>
