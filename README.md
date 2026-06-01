@@ -32,6 +32,10 @@
 
 感谢帮我测试的群友以及帮我写代码的AI。
 
+### 下载
+
+https://www.nexusmods.com/slaythespire2/mods/1027
+
 ### Description
 Makes the map traversable sideways and even backward (unvisited tiles only), and introduces configurable fog-of-war with an advancing erosion boundary. Eroded enemies gain bonus strength and plating. Currently supports stable version 0.103.2 only.
 
@@ -50,3 +54,5 @@ Makes the map traversable sideways and even backward (unvisited tiles only), and
 - Slay the Spire 2 version 0.103.2
 ### Shout outs
 Thanks to the community members who helped test the mod, and the AI that helped write the code.
+### Download
+https://www.nexusmods.com/slaythespire2/mods/1027
