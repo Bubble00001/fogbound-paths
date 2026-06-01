@@ -1,29 +1,18 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using MegaCrit.Sts2.Core.Map;
 using MegaCrit.Sts2.Core.Logging;
 
 namespace FogboundPaths.FogOfWar;
 
-/// <summary>
-/// 迷雾与侵蚀系统的全局管理器（静态单例模式）。
-/// 负责：
-/// - 维护每个 Act 的 FogOfWarState；
-/// - 追踪玩家移动步数并更新侵蚀边界；
-/// - 基于图 BFS 计算视野揭示范围；
-/// - 对外提供"是否揭示""是否侵蚀"的查询接口。
-/// </summary>
 public static class FogOfWarManager
 {
-    /// <summary>所有 Act 的迷雾状态，key = ActIndex</summary>
     private static readonly Dictionary<int, FogOfWarState> _actStates = new Dictionary<int, FogOfWarState>();
 
-    /// <summary>当前 Act 的状态快照</summary>
     private static FogOfWarState? _currentState;
 
-    /// <summary>地图列数（固定 7 列）</summary>
     private const int ColCount = 7;
 
-    /// <summary>由 Entry.cs 在 Init 时注入，供 BFS 使用</summary>
     public static FogConfig Config = new();
 
     public static FogOfWarState? Current => _currentState;
@@ -97,7 +86,14 @@ public static class FogOfWarManager
         RevealBfs(state, newCoord, map);
 
         if (state.VisitedCoords.Contains(newCoord))
+        {
+            if (Config.AllowBacktrack)
+            {
+                state.StepCount++;
+                state.ErosionRow = state.StepCount - Config.ErosionBuffer;
+            }
             return;
+        }
 
         state.VisitedCoords.Add(newCoord);
         state.StepCount++;
@@ -223,5 +219,62 @@ public static class FogOfWarManager
                 }
             }
         }
+    }
+
+    internal static string SerializeActState(int actIndex)
+    {
+        if (!_actStates.TryGetValue(actIndex, out var state))
+            return "{}";
+        return JsonSerializer.Serialize(new
+        {
+            RevealedCoords = state.RevealedCoords.Select(c => new { c.col, c.row }).ToArray(),
+            VisitedCoords = state.VisitedCoords.Select(c => new { c.col, c.row }).ToArray(),
+            state.ErosionRow,
+            state.StepCount,
+            CurrentPosition = state.CurrentPosition.HasValue
+                ? new { state.CurrentPosition.Value.col, state.CurrentPosition.Value.row }
+                : null,
+            state.MapRowCount
+        });
+    }
+
+    internal static void ApplySyncedState(int actIndex, string json, ActMap? map)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        if (!_actStates.TryGetValue(actIndex, out var state))
+        {
+            state = new FogOfWarState();
+            _actStates[actIndex] = state;
+        }
+
+        state.RevealedCoords.Clear();
+        if (root.TryGetProperty("RevealedCoords", out var revealed))
+        {
+            foreach (var item in revealed.EnumerateArray())
+                state.RevealedCoords.Add(new MapCoord(item.GetProperty("col").GetInt32(), item.GetProperty("row").GetInt32()));
+        }
+
+        state.VisitedCoords.Clear();
+        if (root.TryGetProperty("VisitedCoords", out var visited))
+        {
+            foreach (var item in visited.EnumerateArray())
+                state.VisitedCoords.Add(new MapCoord(item.GetProperty("col").GetInt32(), item.GetProperty("row").GetInt32()));
+        }
+
+        if (root.TryGetProperty("ErosionRow", out var erosionRow))
+            state.ErosionRow = erosionRow.GetInt32();
+
+        if (root.TryGetProperty("StepCount", out var stepCount))
+            state.StepCount = stepCount.GetInt32();
+
+        if (root.TryGetProperty("MapRowCount", out var mapRowCount))
+            state.MapRowCount = mapRowCount.GetInt32();
+
+        if (root.TryGetProperty("CurrentPosition", out var pos) && pos.ValueKind != JsonValueKind.Null)
+            state.CurrentPosition = new MapCoord(pos.GetProperty("col").GetInt32(), pos.GetProperty("row").GetInt32());
+
+        _currentState = state;
     }
 }

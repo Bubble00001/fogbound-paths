@@ -7,5 +7,7 @@
   "fogboundpaths.erosionBuffer.label": "Erosion Buffer",
   "fogboundpaths.erosionBuffer.description": "How many steps between current position and erosion boundary (0 = same-turn).",
   "fogboundpaths.revealDepth.label": "Reveal Depth",
-  "fogboundpaths.revealDepth.description": "How many steps from current position are revealed (0 = only current)."
+  "fogboundpaths.revealDepth.description": "How many steps from current position are revealed (0 = only current).",
+  "fogboundpaths.allowBacktrack.label": "Allow Backtrack",
+  "fogboundpaths.allowBacktrack.description": "When enabled, visited nodes can be entered again."
 }

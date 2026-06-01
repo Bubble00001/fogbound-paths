@@ -23,4 +23,6 @@ public class FogConfig
     /// 0 = only current node visible.
     /// </summary>
     [DataMember] public int RevealDepth { get; set; } = 2;
+
+    [DataMember] public bool AllowBacktrack { get; set; } = false;
 }

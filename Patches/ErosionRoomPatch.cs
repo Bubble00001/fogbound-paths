@@ -242,12 +242,10 @@ public static class ErosionCombatStrengthPatch
             var strModel = ModelDb.Power<StrengthPower>();
             var plateModel = ModelDb.Power<PlatingPower>();
 
-            // 向每个存活的敌方生物施加侵蚀增益
             foreach (var e in cs.Enemies)
             {
                 if (e == null || e.IsDead) continue;
 
-                // +3 力量
                 if (strModel != null)
                 {
                     var p = strModel.ToMutable();
@@ -255,7 +253,6 @@ public static class ErosionCombatStrengthPatch
                     Log.Info($"[FogboundPaths] +3 Strength -> {e.LogName}");
                 }
 
-                // +10 覆甲（PlatingPower = 回合开始时获得等量格挡）
                 if (plateModel != null)
                 {
                     var pp = plateModel.ToMutable();

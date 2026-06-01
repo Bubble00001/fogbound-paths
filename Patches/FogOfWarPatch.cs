@@ -26,16 +26,17 @@ public static class SetMapFogInitPatch
     [HarmonyPrefix]
     private static void Prefix(NMapScreen __instance, ActMap map)
     {
-        // 反射获取 NMapScreen 的 _runState 字段
         if (_runStateField?.GetValue(__instance) is not RunState runState) return;
 
-        // 初始化迷雾：传入当前幕索引、地图高度、起始坐标和已走访列表
         FogOfWarManager.InitializeAct(
             runState.CurrentActIndex,
             map.GetRowCount(),
             map.StartingMapPoint.coord,
             runState.VisitedMapCoords,
             map);
+
+        FogConfigSync.SetCurrentActIndex(runState.CurrentActIndex);
+        FogConfigSync.TryBroadcastPendingConfig();
     }
 }
 
@@ -180,6 +181,8 @@ public static class NoBacktrackPatch
     [HarmonyPostfix]
     private static void Postfix(NMapScreen __instance)
     {
+        if (FogOfWarManager.Config.AllowBacktrack) return;
+
         if (_runStateField?.GetValue(__instance) is not RunState runState) return;
         if (_dictField?.GetValue(__instance) is not
             Dictionary<MapCoord, NMapPoint> dict) return;
@@ -189,9 +192,6 @@ public static class NoBacktrackPatch
 
         foreach (var vc in visited)
         {
-            // 如果 RecalculateTravelability 把这个坐标设为了 Travelable
-            // （因为它是当前节点的 Children——同行或反向纵向），
-            // 就把它改回 Traveled——已经踩过了不能再踩
             if (dict.TryGetValue(vc, out var node) && node.State == MapPointState.Travelable)
                 node.State = MapPointState.Traveled;
         }

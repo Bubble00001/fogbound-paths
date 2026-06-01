@@ -81,6 +81,15 @@ public class Entry
                         (c, v) => c.RevealDepth = v),
                     minValue: 0, maxValue: 20,
                     description: T("fogboundpaths.revealDepth.description",
-                        "How many steps from current position are revealed."))));
+                        "How many steps from current position are revealed."))
+                .AddToggle("allowBacktrack",
+                    T("fogboundpaths.allowBacktrack.label", "Allow Backtrack"),
+                    new ModSettingsValueBinding<FogConfig, bool>(
+                        "FogboundPaths", "config",
+                        global::STS2RitsuLib.Utils.Persistence.SaveScope.Global,
+                        c => c.AllowBacktrack,
+                        (c, v) => c.AllowBacktrack = v),
+                    description: T("fogboundpaths.allowBacktrack.description",
+                        "When enabled, visited nodes can be entered again."))));
     }
 }

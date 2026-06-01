@@ -13,9 +13,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <ModVersion>1.0.1</ModVersion>
+    <ModVersion>1.0.2</ModVersion>
 
-    <!-- 其余省略，添加以下这行，可以自动部署到你的mods文件夹 -->
     <RitsuLibDeployDir>$(Sts2Dir)/mods/STS2-RitsuLib/</RitsuLibDeployDir>
   </PropertyGroup>
 
@@ -30,7 +29,7 @@
       <Private>false</Private>
     </Reference>
 
-    <PackageReference Include=" STS2.RitsuLib.Compat.0.103.2 " Version="0.3.2" />
+    <PackageReference Include=" STS2.RitsuLib.Compat.0.103.2 " Version="*" />
   </ItemGroup>
 
   <ItemGroup>
