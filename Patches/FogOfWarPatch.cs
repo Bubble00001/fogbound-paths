@@ -26,6 +26,8 @@ public static class SetMapFogInitPatch
     [HarmonyPrefix]
     private static void Prefix(NMapScreen __instance, ActMap map)
     {
+        EnterMapCoordRevisitPatch.IsLoadingSave = false;
+
         if (_runStateField?.GetValue(__instance) is not RunState runState) return;
 
         FogOfWarManager.InitializeAct(

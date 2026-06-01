@@ -90,6 +90,48 @@ public class Entry
                         c => c.AllowBacktrack,
                         (c, v) => c.AllowBacktrack = v),
                     description: T("fogboundpaths.allowBacktrack.description",
-                        "When enabled, visited nodes can be entered again."))));
+                        "When enabled, visited nodes can be entered again.")))
+            .AddSection("erosion", section => section
+                .WithTitle(T("fogboundpaths.section.erosion.title", "Erosion Combat"))
+                .AddIntSlider("erosionBaseStrength",
+                    T("fogboundpaths.erosionBaseStrength.label", "Base Strength"),
+                    new ModSettingsValueBinding<FogConfig, int>(
+                        "FogboundPaths", "config",
+                        global::STS2RitsuLib.Utils.Persistence.SaveScope.Global,
+                        c => c.ErosionBaseStrength,
+                        (c, v) => c.ErosionBaseStrength = v),
+                    minValue: 0, maxValue: 20,
+                    description: T("fogboundpaths.erosionBaseStrength.description",
+                        "Base Strength applied to enemies in eroded combat."))
+                .AddIntSlider("erosionBasePlating",
+                    T("fogboundpaths.erosionBasePlating.label", "Base Plating"),
+                    new ModSettingsValueBinding<FogConfig, int>(
+                        "FogboundPaths", "config",
+                        global::STS2RitsuLib.Utils.Persistence.SaveScope.Global,
+                        c => c.ErosionBasePlating,
+                        (c, v) => c.ErosionBasePlating = v),
+                    minValue: 0, maxValue: 50,
+                    description: T("fogboundpaths.erosionBasePlating.description",
+                        "Base Plating applied to enemies in eroded combat."))
+                .AddIntSlider("erosionExtraStrengthPerRow",
+                    T("fogboundpaths.erosionExtraStrengthPerRow.label", "Extra Strength / Row"),
+                    new ModSettingsValueBinding<FogConfig, int>(
+                        "FogboundPaths", "config",
+                        global::STS2RitsuLib.Utils.Persistence.SaveScope.Global,
+                        c => c.ErosionExtraStrengthPerRow,
+                        (c, v) => c.ErosionExtraStrengthPerRow = v),
+                    minValue: 0, maxValue: 10,
+                    description: T("fogboundpaths.erosionExtraStrengthPerRow.description",
+                        "Additional Strength per row deeper into erosion."))
+                .AddIntSlider("erosionExtraPlatingPerRow",
+                    T("fogboundpaths.erosionExtraPlatingPerRow.label", "Extra Plating / Row"),
+                    new ModSettingsValueBinding<FogConfig, int>(
+                        "FogboundPaths", "config",
+                        global::STS2RitsuLib.Utils.Persistence.SaveScope.Global,
+                        c => c.ErosionExtraPlatingPerRow,
+                        (c, v) => c.ErosionExtraPlatingPerRow = v),
+                    minValue: 0, maxValue: 20,
+                    description: T("fogboundpaths.erosionExtraPlatingPerRow.description",
+                        "Additional Plating per row deeper into erosion."))));
     }
 }

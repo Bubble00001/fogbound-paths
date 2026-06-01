@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <ModVersion>1.0.2</ModVersion>
+    <ModVersion>1.0.3</ModVersion>
 
     <RitsuLibDeployDir>$(Sts2Dir)/mods/STS2-RitsuLib/</RitsuLibDeployDir>
   </PropertyGroup>

@@ -36,52 +36,40 @@ namespace FogboundPaths.Patches;
 [HarmonyPatch(typeof(RunManager), nameof(RunManager.EnterMapCoord))]
 public static class EnterMapCoordRevisitPatch
 {
+    internal static bool IsLoadingSave;
+
     [HarmonyPrefix]
     private static bool Prefix(RunManager __instance, MapCoord coord, ref Task __result)
     {
-        // 反射获取 RunManager.State 属性
         var stateProp = typeof(RunManager).GetProperty("State",
             BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
         var state = stateProp?.GetValue(__instance) as RunState;
         if (state == null) return true;
 
-        // 首次访问 → 走原版逻辑
         if (!state.VisitedMapCoords.Contains(coord))
             return true;
 
-        // 已访问过 → 手动添加第二次（使 visitCount > 1）
-        var visitedField = typeof(RunState).GetField("_visitedMapCoords",
-            BindingFlags.NonPublic | BindingFlags.Instance);
-        if (visitedField?.GetValue(state) is List<MapCoord> list)
-            list.Add(coord);
-
-        // 反射调用 EnterMapCoordInternal（跳过 AddVisitedMapCoord 的短路）
         var method = typeof(RunManager).GetMethod("EnterMapCoordInternal",
             BindingFlags.NonPublic | BindingFlags.Instance);
         if (method == null) return true;
 
+        if (!IsLoadingSave)
+        {
+            var visitedField = typeof(RunState).GetField("_visitedMapCoords",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            if (visitedField?.GetValue(state) is List<MapCoord> list)
+                list.Add(coord);
+        }
+
         __result = (Task)method.Invoke(__instance, [coord, null, true])!;
-        return false; // 跳过原始方法
+        return false;
     }
 }
 
 // ============================================================================
-// Patch 2: 侵蚀判定 + 重复访问判定
+// Patch 2: 侵蚀判定 + 重复访问判定（不再修改 pointType）
 // ============================================================================
 
-/// <summary>
-/// 拦截 EnterMapPointInternal，根据侵蚀和重访状态修改 roomType。
-///
-/// 优先级：
-/// 1. Ancient/Boss → 不处理（系统特殊节点）
-/// 2. visitCount > 1（重访）→ 强制 RestSite（空房间），设 IsRevisit 标记
-/// 3. 侵蚀但非战斗（Shop/Unknown/Rest）→ 强制 RestSite
-/// 4. 侵蚀战斗 → 维持原类型（由 ErosionCombatStrengthPatch 加力量）
-/// 5. 其他 → 原样不动
-///
-/// 注意：使用 CurrentMapCoord（上一个走完的坐标）而非本次参数，
-/// 因为 EnterMapPointInternal 的 pointType 就是基于 CurrentMapCoord 计算的。
-/// </summary>
 [HarmonyPatch(typeof(RunManager), nameof(RunManager.EnterMapPointInternal))]
 public static class ErosionAndRevisitPatch
 {
@@ -91,9 +79,9 @@ public static class ErosionAndRevisitPatch
     private static bool Prefix(RunManager __instance, int actFloor, ref MapPointType pointType,
         AbstractRoom? preFinishedRoom, bool saveGame)
     {
-        // 每次进入先重置标记
         RevisitHelper.IsRevisit = false;
         if (preFinishedRoom != null) return true;
+        if (EnterMapCoordRevisitPatch.IsLoadingSave) return true;
 
         var stateProp = typeof(RunManager).GetProperty("State", _nf | BindingFlags.Public);
         var state = stateProp?.GetValue(__instance) as RunState;
@@ -102,55 +90,85 @@ public static class ErosionAndRevisitPatch
         var coord = state.CurrentMapCoord;
         if (!coord.HasValue) return true;
 
-        // 远古节点（Neow）和 Boss 不处理
         if (pointType == MapPointType.Ancient || pointType == MapPointType.Boss)
             return true;
 
-        // 统计当前坐标在 visited 中出现的次数
         int visitCount = state.VisitedMapCoords.Count(v => v == coord.Value);
 
-        // 重复访问 → 进入空 RestSite
         if (visitCount > 1)
         {
             pointType = MapPointType.RestSite;
-            RevisitHelper.IsRevisit = true; // 通知下游补丁清空选项 + 启用 Proceed
+            RevisitHelper.IsRevisit = true;
             return true;
         }
 
-        // 未被侵蚀 → 原样
         bool isCombat = pointType == MapPointType.Monster ||
                         pointType == MapPointType.Elite;
-        if (!FogOfWarManager.IsPointEroded(coord.Value, state.CurrentActIndex))
-            return true;
+        bool isEroded = FogOfWarManager.IsPointEroded(coord.Value, state.CurrentActIndex);
 
-        // 侵蚀 + 战斗 → 保持战斗（力量在 StartCombat 中增加）
+        if (!isEroded) return true;
+
         if (isCombat) return true;
 
-        // 侵蚀 + 非战斗 → 替换为 RestSite（空房间）
-        pointType = MapPointType.RestSite;
+        RevisitHelper.IsErosionHandled = false;
+        ErosionHelper.MarkErosionEmpty(coord.Value, pointType);
         return true;
     }
 }
 
-/// <summary>
-/// Patch 2 和 Patch 3/4 之间的状态传递标记。
-/// </summary>
+internal static class ErosionHelper
+{
+    internal static readonly Dictionary<MapCoord, MapPointType> ErosionEmptyCoords = [];
+
+    internal static void MarkErosionEmpty(MapCoord coord, MapPointType originalType) => ErosionEmptyCoords[coord] = originalType;
+
+    internal static void Clear()
+    {
+        ErosionEmptyCoords.Clear();
+    }
+}
 internal static class RevisitHelper
 {
-    /// <summary>当前进入的是否为重访空房间</summary>
     public static bool IsRevisit;
+    public static bool IsErosionEmptyRoom;
+    internal static bool IsErosionHandled;
+}
+
+// ============================================================================
+// Patch 2.5: 侵蚀非战斗房间 → 动态替换为 RestSite
+// ============================================================================
+
+[HarmonyPatch(typeof(RunManager), "EnterRoomInternal", typeof(AbstractRoom), typeof(bool))]
+public static class ErosionEmptyRoomPatch
+{
+    [HarmonyPrefix]
+    private static void Prefix(AbstractRoom room)
+    {
+        if (RevisitHelper.IsErosionHandled) return;
+        RevisitHelper.IsErosionHandled = true;
+
+        var runManager = RunManager.Instance;
+        if (runManager == null) return;
+
+        var stateProp = typeof(RunManager).GetProperty("State",
+            BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+        var state = stateProp?.GetValue(runManager) as IRunState;
+        if (state == null) return;
+
+        var coord = state.CurrentMapCoord;
+        if (!coord.HasValue) return;
+
+        if (!ErosionHelper.ErosionEmptyCoords.TryGetValue(coord.Value, out _))
+            return;
+
+        RevisitHelper.IsErosionEmptyRoom = true;
+    }
 }
 
 // ============================================================================
 // Patch 3: 重访时清空火堆选项
 // ============================================================================
 
-/// <summary>
-/// 拦截 RestSiteSynchronizer.BeginRestSite()，在重访空房间时清空 rest 选项列表。
-///
-/// BeginRestSite 正常执行（保证 _restSites 结构完整，避免 GetOptionsForPlayer 越界崩溃），
-/// 然后在此 Postfix 中反射清空所有玩家选项 → 0 个选项 → 空火堆。
-/// </summary>
 [HarmonyPatch(typeof(RestSiteSynchronizer), "BeginRestSite")]
 public static class ClearOptionsOnRevisitPatch
 {
@@ -159,7 +177,7 @@ public static class ClearOptionsOnRevisitPatch
     [HarmonyPostfix]
     private static void Postfix(RestSiteSynchronizer __instance)
     {
-        if (!RevisitHelper.IsRevisit) return;
+        if (!RevisitHelper.IsRevisit && !RevisitHelper.IsErosionEmptyRoom) return;
 
         // 反射获取 _restSites 列表
         var field = typeof(RestSiteSynchronizer).GetField("_restSites", _nf);
@@ -194,15 +212,15 @@ public static class EnableProceedOnRevisitPatch
     [HarmonyPostfix]
     private static void Postfix(NRestSiteRoom __instance)
     {
-        if (!RevisitHelper.IsRevisit) return;
+        if (!RevisitHelper.IsRevisit && !RevisitHelper.IsErosionEmptyRoom) return;
 
         var proceedField = typeof(NRestSiteRoom).GetField("_proceedButton", _nf);
         if (proceedField?.GetValue(__instance) is NProceedButton proceed)
         {
             proceed.Enable();
-            // 关键：原版 ShowProceedButton() 也调了这行，保证地图可移动
             NMapScreen.Instance?.SetTravelEnabled(true);
             RevisitHelper.IsRevisit = false;
+            RevisitHelper.IsErosionEmptyRoom = false;
         }
     }
 }
@@ -239,6 +257,14 @@ public static class ErosionCombatStrengthPatch
             // 检查当前坐标是否被侵蚀
             if (!FogOfWarManager.IsPointEroded(c.Value, rs.CurrentActIndex)) return;
 
+            var state = FogOfWarManager.Current;
+            int erosionRow = state?.ErosionRow ?? int.MaxValue;
+            int depth = erosionRow - c.Value.row;
+            int extra = Math.Max(0, depth - 1);
+            var config = FogOfWarManager.Config;
+            int strAmount = config.ErosionBaseStrength + config.ErosionExtraStrengthPerRow * extra;
+            int plateAmount = config.ErosionBasePlating + config.ErosionExtraPlatingPerRow * extra;
+
             var strModel = ModelDb.Power<StrengthPower>();
             var plateModel = ModelDb.Power<PlatingPower>();
 
@@ -249,15 +275,15 @@ public static class ErosionCombatStrengthPatch
                 if (strModel != null)
                 {
                     var p = strModel.ToMutable();
-                    await PowerCmd.Apply(p, e, 3m, e, null);
-                    Log.Info($"[FogboundPaths] +3 Strength -> {e.LogName}");
+                    await PowerCmd.Apply(p, e, strAmount, e, null);
+                    Log.Info($"[FogboundPaths] +{strAmount} Strength -> {e.LogName}");
                 }
 
                 if (plateModel != null)
                 {
                     var pp = plateModel.ToMutable();
-                    await PowerCmd.Apply(pp, e, 10m, e, null);
-                    Log.Info($"[FogboundPaths] +10 Plating -> {e.LogName}");
+                    await PowerCmd.Apply(pp, e, plateAmount, e, null);
+                    Log.Info($"[FogboundPaths] +{plateAmount} Plating -> {e.LogName}");
                 }
             }
         }

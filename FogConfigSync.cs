@@ -6,6 +6,7 @@ using MegaCrit.Sts2.Core.Runs;
 using STS2RitsuLib;
 using STS2RitsuLib.Networking.Sidecar;
 using FogboundPaths.FogOfWar;
+using FogboundPaths.Patches;
 
 namespace FogboundPaths;
 
@@ -109,22 +110,21 @@ public static class FogConfigSync
 
     private static void OnRunStarted(RunStartedEvent evt)
     {
+        FogOfWarManager.ClearAllActs();
+        ErosionHelper.Clear();
         ResetForNewRun(evt.IsMultiplayer);
     }
 
     private static void OnRunLoaded(RunLoadedEvent evt)
     {
+        EnterMapCoordRevisitPatch.IsLoadingSave = true;
         ResetForNewRun(evt.IsMultiplayer);
     }
 
     private static void ResetForNewRun(bool isMultiplayer)
     {
         _pendingBroadcast = false;
-
-        FogOfWarManager.ClearAllActs();
-
         FogOfWarManager.Config = _localConfig;
-
         if (isMultiplayer)
         {
             _pendingBroadcast = true;
