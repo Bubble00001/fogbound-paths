@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using MegaCrit.Sts2.Core.Map;
 using MegaCrit.Sts2.Core.Logging;
 
@@ -230,5 +231,62 @@ public static class FogOfWarManager
                 }
             }
         }
+    }
+
+    internal static string SerializeActState(int actIndex)
+    {
+        if (!_actStates.TryGetValue(actIndex, out var state))
+            return "{}";
+        return JsonSerializer.Serialize(new
+        {
+            RevealedCoords = state.RevealedCoords.Select(c => new { c.col, c.row }).ToArray(),
+            VisitedCoords = state.VisitedCoords.Select(c => new { c.col, c.row }).ToArray(),
+            state.ErosionRow,
+            state.StepCount,
+            CurrentPosition = state.CurrentPosition.HasValue
+                ? new { state.CurrentPosition.Value.col, state.CurrentPosition.Value.row }
+                : null,
+            state.MapRowCount
+        });
+    }
+
+    internal static void ApplySyncedState(int actIndex, string json, ActMap? map)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        if (!_actStates.TryGetValue(actIndex, out var state))
+        {
+            state = new FogOfWarState();
+            _actStates[actIndex] = state;
+        }
+
+        state.RevealedCoords.Clear();
+        if (root.TryGetProperty("RevealedCoords", out var revealed))
+        {
+            foreach (var item in revealed.EnumerateArray())
+                state.RevealedCoords.Add(new MapCoord(item.GetProperty("col").GetInt32(), item.GetProperty("row").GetInt32()));
+        }
+
+        state.VisitedCoords.Clear();
+        if (root.TryGetProperty("VisitedCoords", out var visited))
+        {
+            foreach (var item in visited.EnumerateArray())
+                state.VisitedCoords.Add(new MapCoord(item.GetProperty("col").GetInt32(), item.GetProperty("row").GetInt32()));
+        }
+
+        if (root.TryGetProperty("ErosionRow", out var erosionRow))
+            state.ErosionRow = erosionRow.GetInt32();
+
+        if (root.TryGetProperty("StepCount", out var stepCount))
+            state.StepCount = stepCount.GetInt32();
+
+        if (root.TryGetProperty("MapRowCount", out var mapRowCount))
+            state.MapRowCount = mapRowCount.GetInt32();
+
+        if (root.TryGetProperty("CurrentPosition", out var pos) && pos.ValueKind != JsonValueKind.Null)
+            state.CurrentPosition = new MapCoord(pos.GetProperty("col").GetInt32(), pos.GetProperty("row").GetInt32());
+
+        _currentState = state;
     }
 }

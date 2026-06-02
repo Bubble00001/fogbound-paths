@@ -9,5 +9,14 @@
   "fogboundpaths.revealDepth.label": "Reveal Depth",
   "fogboundpaths.revealDepth.description": "How many steps from current position are revealed (0 = only current).",
   "fogboundpaths.allowBacktrack.label": "Allow Backtrack",
-  "fogboundpaths.allowBacktrack.description": "When enabled, visited nodes can be entered again."
+  "fogboundpaths.allowBacktrack.description": "When enabled, visited nodes can be entered again.",
+  "fogboundpaths.section.erosion.title": "Erosion Combat",
+  "fogboundpaths.erosionBaseStrength.label": "Base Strength",
+  "fogboundpaths.erosionBaseStrength.description": "Base Strength applied to enemies in eroded combat.",
+  "fogboundpaths.erosionBasePlating.label": "Base Plating",
+  "fogboundpaths.erosionBasePlating.description": "Base Plating applied to enemies in eroded combat.",
+  "fogboundpaths.erosionExtraStrengthPerRow.label": "Extra Strength / Row",
+  "fogboundpaths.erosionExtraStrengthPerRow.description": "Additional Strength per row deeper into erosion.",
+  "fogboundpaths.erosionExtraPlatingPerRow.label": "Extra Plating / Row",
+  "fogboundpaths.erosionExtraPlatingPerRow.description": "Additional Plating per row deeper into erosion."
 }

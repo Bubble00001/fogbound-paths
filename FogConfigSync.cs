@@ -1,9 +1,12 @@
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Runs;
 using STS2RitsuLib;
 using STS2RitsuLib.Networking.Sidecar;
+using FogboundPaths.FogOfWar;
+using FogboundPaths.Patches;
 
 namespace FogboundPaths;
 
@@ -15,6 +18,7 @@ public static class FogConfigSync
     private static ulong _opcode;
     private static bool _initialized;
     private static bool _pendingBroadcast;
+    private static int _currentActIndex;
 
     private static FogConfig _localConfig = null!;
 
@@ -25,9 +29,9 @@ public static class FogConfigSync
 
         _opcode = RitsuLibSidecarOpcodes.For(ModuleKey, MessageKey);
 
-        _localConfig = FogOfWar.FogOfWarManager.Config;
+        _localConfig = FogOfWarManager.Config;
 
-        RitsuLibSidecarBus.RegisterHandler(_opcode, OnConfigReceived);
+        RitsuLibSidecarBus.RegisterHandler(_opcode, OnSyncReceived);
 
         RitsuLibFramework.SubscribeLifecycle<RunStartedEvent>(OnRunStarted);
         RitsuLibFramework.SubscribeLifecycle<RunLoadedEvent>(OnRunLoaded);
@@ -36,31 +40,51 @@ public static class FogConfigSync
         Log.Info("[FogboundPaths] Config sync initialized (multiplayer host-authority mode)");
     }
 
-    private static void OnConfigReceived(RitsuLibSidecarDispatchContext ctx)
+    private static void OnSyncReceived(RitsuLibSidecarDispatchContext ctx)
     {
         try
         {
             var json = Encoding.UTF8.GetString(ctx.Payload.Span);
-            var config = JsonSerializer.Deserialize<FogConfig>(json);
-            if (config != null)
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("config", out var configEl))
             {
-                FogOfWar.FogOfWarManager.Config = config;
-                Log.Info($"[FogboundPaths] Applied host config: RevealDepth={config.RevealDepth}, ErosionBuffer={config.ErosionBuffer}, EnableFog={config.EnableFog}, AllowBacktrack={config.AllowBacktrack}");
+                var config = JsonSerializer.Deserialize<FogConfig>(configEl.GetRawText());
+                if (config != null)
+                {
+                    FogOfWarManager.Config = config;
+                    Log.Info($"[FogboundPaths] Applied host config: RevealDepth={config.RevealDepth}, ErosionBuffer={config.ErosionBuffer}, EnableFog={config.EnableFog}, AllowBacktrack={config.AllowBacktrack}");
+                }
+            }
+
+            if (root.TryGetProperty("state", out var stateEl) && root.TryGetProperty("actIndex", out var actIdxEl))
+            {
+                var actIndex = actIdxEl.GetInt32();
+                FogOfWarManager.ApplySyncedState(actIndex, stateEl.GetRawText(), null);
+                Log.Info($"[FogboundPaths] Applied host fog state for act {actIndex}");
             }
         }
         catch (Exception ex)
         {
-            Log.Error($"[FogboundPaths] Failed to deserialize host config: {ex.Message}");
+            Log.Error($"[FogboundPaths] Failed to deserialize host sync: {ex.Message}");
         }
     }
 
-    private static bool TryBroadcastConfig()
+    public static void SetCurrentActIndex(int actIndex)
+    {
+        _currentActIndex = actIndex;
+    }
+
+    private static bool TryBroadcastSync()
     {
         var runManager = RunManager.Instance;
         if (runManager?.NetService == null) return false;
 
-        var json = JsonSerializer.Serialize(FogOfWar.FogOfWarManager.Config);
-        var bytes = Encoding.UTF8.GetBytes(json);
+        var stateJson = FogOfWarManager.SerializeActState(_currentActIndex);
+        var configJson = JsonSerializer.Serialize(FogOfWarManager.Config);
+        var payload = $"{{\"config\":{configJson},\"state\":{stateJson},\"actIndex\":{_currentActIndex}}}";
+        var bytes = Encoding.UTF8.GetBytes(payload);
 
         bool sent = RitsuLibSidecarHighLevelSend.TrySendAsHostBroadcast(
             runManager,
@@ -69,9 +93,9 @@ public static class FogConfigSync
             RitsuLibSidecarDeliverySemantics.StableSync);
 
         if (sent)
-            Log.Info("[FogboundPaths] Host config broadcast to all clients");
+            Log.Info("[FogboundPaths] Host config + state broadcast to all clients");
         else
-            Log.Info("[FogboundPaths] Not host or Sidecar not ready, skipping config broadcast");
+            Log.Info("[FogboundPaths] Not host or Sidecar not ready, skipping sync broadcast");
 
         return sent;
     }
@@ -80,28 +104,26 @@ public static class FogConfigSync
     {
         if (!_pendingBroadcast) return;
         Log.Info("[FogboundPaths] SetMap triggered, attempting config broadcast...");
-        if (TryBroadcastConfig())
+        if (TryBroadcastSync())
             _pendingBroadcast = false;
     }
 
     private static void OnRunStarted(RunStartedEvent evt)
     {
+        FogOfWarManager.ClearAllActs();
         ResetForNewRun(evt.IsMultiplayer);
     }
 
     private static void OnRunLoaded(RunLoadedEvent evt)
     {
+        EnterMapCoordRevisitPatch.IsLoadingSave = true;
         ResetForNewRun(evt.IsMultiplayer);
     }
 
     private static void ResetForNewRun(bool isMultiplayer)
     {
         _pendingBroadcast = false;
-
-        FogOfWar.FogOfWarManager.ClearAllActs();
-
-        FogOfWar.FogOfWarManager.Config = _localConfig;
-
+        FogOfWarManager.Config = _localConfig;
         if (isMultiplayer)
         {
             _pendingBroadcast = true;
@@ -113,7 +135,7 @@ public static class FogConfigSync
     {
         if (!_pendingBroadcast) return;
         Log.Info($"[FogboundPaths] Sidecar handshake completed for peer {evt.PeerNetId}, attempting config broadcast...");
-        if (TryBroadcastConfig())
+        if (TryBroadcastSync())
             _pendingBroadcast = false;
     }
 }
